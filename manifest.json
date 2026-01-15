@@ -1,0 +1,17 @@
+{
+  "short_name": "SIGTAP MOBILE",
+  "name": "SIGTAP MOBILE - INSTITUTO ACQUA",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "index.html",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "scope": "./",
+  "theme_color": "#3b82f6"
+}
