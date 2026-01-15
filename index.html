@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <link rel="manifest" href="manifest.json">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ACQUA SIGTAP">
+<link rel="apple-touch-icon" href="icon.png">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SIGTAP Pro - Instituto Acqua</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --cyan: #22d3ee;
+            --text: #f8fafc; --text-dim: #94a3b8; --border: rgba(255,255,255,0.1);
+            --opme: #10b981; --proc: #f59e0b; --danger: #ef4444;
+        }
+        body { background: var(--bg); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; color: var(--text); padding-bottom: 40px; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000; }
+        .logo { font-weight: 800; font-size: 1.1rem; }
+        .logo span { color: var(--accent); }
+        .search-container { padding: 15px; max-width: 800px; margin: 0 auto; position: relative; }
+        .search-box { width: 100%; padding: 14px 18px; border-radius: 12px; border: 2px solid var(--border); background: var(--card); color: var(--text); font-size: 1rem; outline: none; box-sizing: border-box; }
+        #results { position: absolute; width: calc(100% - 30px); top: 75px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); max-height: 350px; overflow-y: auto; z-index: 2000; display: none; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 10px; display: none; }
+        .hero-card { background: var(--card); border-radius: 20px; padding: 20px; border: 1px solid var(--border); margin-bottom: 15px; border-top: 4px solid var(--accent); }
+        .grid-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
+        @media (min-width: 600px) { .grid-stats { grid-template-columns: repeat(4, 1fr); } }
+        .stat-box { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+        .stat-box small { display: block; font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
+        .stat-box b { color: var(--cyan); font-size: 0.95rem; }
+        .price-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
+        @media (min-width: 600px) { .price-row { grid-template-columns: repeat(4, 1fr); } }
+        .price-tag { background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; text-align: center; border: 1px solid var(--border); }
+        .price-tag.total { background: var(--accent); border: none; }
+        .nav-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; position: sticky; top: 60px; background: var(--bg); z-index: 900; }
+        .tab-btn { padding: 10px 18px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; color: var(--text-dim); cursor: pointer; white-space: nowrap; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; gap: 8px; }
+        .tab-btn.active { background: var(--accent); color: white; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .card-list { background: var(--card); border: 1px solid var(--border); border-radius: 15px; padding: 15px; margin-bottom: 10px; }
+        .badge { font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; color: #fff; text-transform: uppercase; }
+        .badge-opme { background: var(--opme); }
+        .badge-proc { background: var(--proc); }
+        .badge-excl { background: var(--danger); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+	/* Garante que o botão de voltar fique sempre na frente de tudo */
+#btn-back {
+    position: fixed !important;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999 !important; /* Valor bem alto para sobrepor cards e modais */
+    display: none; /* Começa escondido */
+    align-items: center;
+    justify-content: center;
+}
+
+/* Se as abas estão escondendo o ícone das habilitações dentro do card */
+.card-list {
+    position: relative;
+    overflow: hidden; /* Evita que o conteúdo vaze */
+}
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">ACQUA<span>SIGTAP</span></div>
+    <button onclick="document.getElementById('file').click()" style="background:var(--accent); color:#fff; border:none; padding:8px 15px; border-radius:10px; font-weight:700; cursor:pointer;">SUBIR ZIP</button>
+    <input type="file" id="file" style="display:none">
+</header>
+
+<div id="st" style="text-align:center; font-size:0.65rem; padding:8px; color:var(--cyan); font-weight:bold;">MODO AUDITORIA ATIVO</div>
+
+<div class="search-container">
+    <input type="text" id="sin" class="search-box" placeholder="Ex: 0408050500..." disabled>
+    <div id="results"></div>
+</div>
+
+<main class="container" id="ui">
+    <div class="hero-card">
+        <div id="ui-c" style="font-family:monospace; color:var(--accent); font-weight:bold;"></div>
+        <h1 id="ui-n" style="margin:8px 0; font-size:1.3rem;"></h1>
+        <div class="grid-stats">
+            <div class="stat-box"><small>Qtd Max</small><b id="st-q"></b></div>
+            <div class="stat-box"><small>Permanência</small><b id="st-p"></b></div>
+            <div class="stat-box"><small>Idade</small><b id="st-i"></b></div>
+            <div class="stat-box"><small>Gênero</small><b id="st-s"></b></div>
+        </div>
+        <div class="price-row">
+            <div class="price-tag"><small>SA</small><br><b id="v-sa"></b></div>
+            <div class="price-tag"><small>SH</small><br><b id="v-sh"></b></div>
+            <div class="price-tag"><small>SP</small><br><b id="v-sp"></b></div>
+            <div class="price-tag total"><small>TOTAL</small><br><b id="v-tt"></b></div>
+        </div>
+    </div>
+
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="tab(event, 'tab-mat')"><i class="fa-solid fa-layer-group"></i> Compatíveis/Excludentes</button>
+        <button class="tab-btn" onclick="tab(event, 'tab-det')"><i class="fa-solid fa-tags"></i> Atributos</button>
+        <button class="tab-btn" onclick="tab(event, 'tab-cid')"><i class="fa-solid fa-stethoscope"></i> CIDs</button>
+	<button class="tab-btn" onclick="tab(event, 'tab-cbo')"><i class="fa-solid fa-user-md"></i> CBOs Permitidos</button>
+        <button class="tab-btn" onclick="tab(event, 'tab-desc')"><i class="fa-solid fa-align-left"></i> Descrição</button>
+	<button class="tab-btn" onclick="tab(event, 'tab-leito')"><i class="fa-solid fa-bed"></i> Leitos</button>
+	<button class="tab-btn" onclick="tab(event, 'tab-serv')"><i class="fa-solid fa-hospital-user"></i> Serviços/Classif.</button>
+	<button class="tab-btn" onclick="tab(event, 'tab-hab')"><i class="fa-solid fa-certificate"></i> Habilitações</button>
+    </div>
+
+    <div id="tab-mat" class="tab-content" style="display:block;"></div>
+    <div id="tab-det" class="tab-content"></div>
+    <div id="tab-cid" class="tab-content"></div>
+    <div id="tab-desc" class="tab-content"><div id="ui-desc" style="padding:15px; color:var(--text-dim);"></div></div>
+    <div id="tab-cbo" class="tab-content"></div>
+    <div id="tab-leito" class="tab-content"></div>
+    <div id="tab-serv" class="tab-content"></div>
+    <div id="tab-hab" class="tab-content"></div>
+</main>
+
+<script>
+
+const NOMES_LEITOS = {
+    "01": "CIRURGICO", "02": "OBSTETRICO", "03": "PEDIATRICO", 
+    "04": "TISSIOLOGIA", "05": "PSIQUIATRIA", "06": "CRONICOS", 
+    "07": "CLINICO", "08": "HOSPITAL DIA"
+};
+
+    let DATA = { 
+    pList: [], pMap: {}, desc: {}, dets: {}, cids: {}, cbos: {}, 
+    relCbo: {}, relLeito: {}, servicos: {}, classificacoes: {}, relServ: {}, 
+    registros: {}, relReg: {} // <-- ADICIONE ESTAS DUAS AQUI!
+};
+    const dec = new TextDecoder('iso-8859-1');
+
+    const req = indexedDB.open("ACQUA_FINAL_V2", 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore("data");
+    req.onsuccess = e => {
+        const db = e.target.result;
+        db.transaction("data").objectStore("data").get("current").onsuccess = ev => {
+            if(ev.target.result) { DATA = ev.target.result; unlock(); }
+        };
+    };
+
+    function unlock() { document.getElementById('sin').disabled = false; document.getElementById('st').innerText = "BASE CARREGADA"; }
+
+    document.getElementById('file').onchange = async (e) => {
+        const file = e.target.files[0]; if(!file) return;
+        document.getElementById('st').innerText = "LENDO ARQUIVOS...";
+        const zip = await JSZip.loadAsync(file);
+        const parse = async (name, cb) => {
+            const f = zip.file(name); if(!f) return;
+            const text = dec.decode(await f.async("arraybuffer"));
+            text.split('\n').forEach(cb);
+        };
+
+        await parse("tb_procedimento.txt", l => {
+            if(l.length >= 318) {
+                const i = {
+                    c: l.substring(0, 10).trim(), n: l.substring(10, 260).trim(), sex: l.substring(261, 262).trim(),
+                    qmx: l.substring(262, 266).trim(), prm: l.substring(266, 270).trim(),
+                    iMi: l.substring(274, 278).trim(), iMa: l.substring(278, 282).trim(),
+                    sh: l.substring(282, 294).trim(), sa: l.substring(294, 306).trim(), sp: l.substring(306, 318).trim()
+                };
+                DATA.pList.push(i); DATA.pMap[i.c] = i;
+            }
+        });
+
+        await parse("tb_descricao.txt", l => DATA.desc[l.substring(0,10).trim()] = l.substring(10).trim());
+        await parse("tb_detalhe.txt", l => DATA.dets[l.substring(0,3).trim()] = l.substring(3,103).trim());
+        await parse("tb_cid.txt", l => DATA.cids[l.substring(0,4).trim()] = l.substring(4,104).trim());
+        await parse("rl_procedimento_detalhe.txt", l => {
+            const p = l.substring(0,10).trim(), d = l.substring(10,13).trim();
+            if(!DATA.relDet[p]) DATA.relDet[p] = []; DATA.relDet[p].push(d);
+        });
+        await parse("rl_procedimento_cid.txt", l => {
+            const p = l.substring(0,10).trim(), c = l.substring(10,14).trim();
+            if(!DATA.relCid[p]) DATA.relCid[p] = []; DATA.relCid[p].push(c);
+        });
+        
+        await parse("rl_procedimento_compativel.txt", l => {
+    if(l.length >= 29) {
+        const p1 = l.substring(0, 10).trim();
+        const p2 = l.substring(12, 22).trim();
+        const tipo = l.substring(24, 25).trim();
+        const qtd = l.substring(26, 29).trim(); // <--- Adicione esta linha
+        
+        if(p1 && p2) {
+            if(!DATA.relMat[p1]) DATA.relMat[p1] = [];
+            DATA.relMat[p1].push({c: p2, t: tipo, q: qtd}); // <--- Adicione o 'q: qtd'
+            if(!DATA.relMat[p2]) DATA.relMat[p2] = [];
+            DATA.relMat[p2].push({c: p1, t: tipo, q: qtd}); // <--- Adicione o 'q: qtd'
+        }
+    }
+});
+
+await parse("tb_ocupacao.txt", l => {
+    if (l.length >= 6) {
+        const cod = l.substring(0, 6).trim();
+        const nome = l.substring(6, 156).trim();
+        if(cod) DATA.cbos[cod] = nome;
+    }
+});
+
+await parse("rl_procedimento_ocupacao.txt", l => {
+    if (l.length >= 22) {
+        const proc = l.substring(0, 10).trim();
+        const cbo = l.substring(10, 16).trim();
+        const comp = l.substring(16, 22).trim(); // DT_COMPETENCIA
+
+        if(proc && cbo) {
+            if(!DATA.relCbo[proc]) DATA.relCbo[proc] = [];
+            
+            // Evita duplicatas e mantém apenas registros únicos
+            // Se quiser ser rigoroso, pode filtrar: if(comp === "202405")
+            if(!DATA.relCbo[proc].includes(cbo)) {
+                DATA.relCbo[proc].push(cbo);
+            }
+        }
+    }
+});
+
+await parse("rl_procedimento_leito.txt", l => {
+    if (l.length >= 12) {
+        const proc = l.substring(0, 10).trim();
+        const leito = l.substring(10, 12).trim();
+        
+        if(proc && leito) {
+            if(!DATA.relLeito[proc]) DATA.relLeito[proc] = [];
+            if(!DATA.relLeito[proc].includes(leito)) {
+                DATA.relLeito[proc].push(leito);
+            }
+        }
+    }
+});
+
+// 1. Dicionário de Serviços (tb_servico.txt)
+await parse("tb_servico.txt", l => {
+    if (l.length >= 3) {
+        const cod = l.substring(0, 3).trim();
+        const nome = l.substring(3, 123).trim();
+        if(cod) DATA.servicos[cod] = nome;
+    }
+});
+
+// 2. Dicionário de Classificações (tb_servico_classificacao.txt)
+// Conforme o layout: CO_SERVICO(1-3), CO_CLASSIFICACAO(4-6), NO_CLASSIFICACAO(7-156)
+await parse("tb_servico_classificacao.txt", l => {
+    if (l.length >= 6) {
+        const s = l.substring(0, 3).trim();
+        const c = l.substring(3, 6).trim();
+        const nome = l.substring(6, 156).trim();
+        
+        // CORREÇÃO AQUI: Adicionado os '&&' e corrigido o posicionamento dos colchetes
+        if(s && c && DATA.classificacoes) {
+            DATA.classificacoes[s + c] = nome; 
+        }
+    }
+});
+
+// 3. Relação Procedimento x Serviço x Classificação (rl_procedimento_servico.txt)
+await parse("rl_procedimento_servico.txt", l => {
+    if (l.length >= 16) {
+        const proc = l.substring(0, 10).trim();
+        const serv = l.substring(10, 13).trim();
+        const classif = l.substring(13, 16).trim();
+        
+        if(proc && serv) {
+            if(!DATA.relServ[proc]) DATA.relServ[proc] = [];
+            // Evita duplicatas de competências diferentes
+            if(!DATA.relServ[proc].find(x => x.s === serv && x.c === classif)) {
+                DATA.relServ[proc].push({ s: serv, c: classif });
+            }
+        }
+    }
+});
+
+// 1. Dicionário de Nomes (tb_habilitacao.txt)
+await parse("tb_habilitacao.txt", l => {
+    if (l.length >= 4) {
+        const cod = l.substring(0, 4).trim();
+        const nome = l.substring(4, 154).trim();
+        if(cod) DATA.habilitacoes[cod] = nome;
+    }
+});
+
+// 2. Relação (rl_procedimento_habilitacao.txt)
+await parse("rl_procedimento_habilitacao.txt", l => {
+    if (l.length >= 14) {
+        const proc = l.substring(0, 10).trim();
+        // Conforme seu layout: Início 11, Tamanho 4 (11 a 14)
+        const hab = l.substring(10, 14).trim(); 
+        if(proc && hab) {
+            if(!DATA.relHab[proc]) DATA.relHab[proc] = [];
+            if(!DATA.relHab[proc].includes(hab)) {
+                DATA.relHab[proc].push(hab);
+            }
+        }
+    }
+});
+
+// 1. Nomes dos Instrumentos (tb_registro.txt)
+await parse("tb_registro.txt", l => {
+    if (l.length >= 2) {
+        const cod = l.substring(0, 2).trim();
+        const nome = l.substring(2, 52).trim();
+        // Se DATA.registros existir (passo 1), isso aqui não dará mais erro:
+        if(cod) DATA.registros[cod] = nome; 
+    }
+});
+
+// 2. Relação (rl_procedimento_registro.txt)
+await parse("rl_procedimento_registro.txt", l => {
+    if (l.length >= 12) {
+        const proc = l.substring(0, 10).trim();
+        const reg = l.substring(10, 12).trim();
+        if(proc && reg) {
+            if(!DATA.relReg[proc]) DATA.relReg[proc] = [];
+            if(!DATA.relReg[proc].includes(reg)) DATA.relReg[proc].push(reg);
+        }
+    }
+});
+        req.result.transaction("data", "readwrite").objectStore("data").put(DATA, "current");
+        unlock();
+    };
+
+    document.getElementById('sin').oninput = function() {
+        const q = this.value.toUpperCase().trim();
+        const res = document.getElementById('results');
+        if(q.length < 3) { res.style.display='none'; return; }
+        const f = DATA.pList.filter(p => p.c.includes(q) || p.n.toUpperCase().includes(q)).slice(0, 15);
+        res.innerHTML = f.map(m => `<div class="item" onclick="show('${m.c}')"><b>${m.c}</b><br><small>${m.n}</small></div>`).join('');
+        res.style.display = 'block';
+    };
+
+function show(cod) {
+    const p = DATA.pMap[cod];
+    if (!p) return;
+
+    // 1. Controle de Interface
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('ui').style.display = 'block';
+    
+    const btnBack = document.getElementById('btn-back');
+    if (btnBack) btnBack.style.display = 'flex';
+
+    // 2. Preenchimento dos Campos de Texto
+    document.getElementById('ui-c').innerText = p.c;
+    document.getElementById('ui-n').innerText = p.n;
+    document.getElementById('st-q').innerText = p.qmx == "9999" ? "Ilimit." : p.qmx;
+    document.getElementById('st-p').innerText = p.prm + " dias";
+    document.getElementById('st-i').innerText = `${Math.floor(p.iMi/12)}-${Math.floor(p.iMa/12)}a`;
+    document.getElementById('st-s').innerText = p.sex == 'M' ? 'Masc' : p.sex == 'F' ? 'Fem' : 'Ambos';
+    document.getElementById('v-sa').innerText = fmt(p.sa);
+    document.getElementById('v-sh').innerText = fmt(p.sh);
+    document.getElementById('v-sp').innerText = fmt(p.sp);
+    document.getElementById('v-tt').innerText = fmt(parseInt(p.sh) + parseInt(p.sp) + parseInt(p.sa));
+
+    // 3. Lógica dos Instrumentos de Registro (Badges na descrição)
+    let regHtml = '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">';
+    if (DATA.relReg && DATA.relReg[cod]) {
+        DATA.relReg[cod].forEach(r => {
+            const nome = DATA.registros[r] || 'Reg. ' + r;
+            regHtml += `<span style="background:#10b981; color:white; padding:4px 10px; border-radius:8px; font-size:0.7rem; font-weight:bold; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-file-invoice"></i> ${nome}</span>`;
+        });
+    }
+    regHtml += '</div>';
+
+    document.getElementById('ui-desc').innerHTML = `
+        <div style="margin-bottom:8px; line-height:1.4;">${DATA.desc[cod] || "Sem descrição."}</div>
+        ${regHtml}
+    `;
+
+    // 4. Preenchimento das Abas (Tudo deve estar aqui dentro)
+    
+// Aba Compatíveis (Dentro da função show)
+    const b = document.getElementById('tab-mat');
+    let list = DATA.relMat ? DATA.relMat[cod] || [] : [];
+    const uniqueMap = new Map();
+    
+    list.forEach(item => {
+        const isExcl = (item.t === "3" || item.t === "4" || item.c === "0415020034");
+        if (!uniqueMap.has(item.c) || isExcl) uniqueMap.set(item.c, item);
+    });
+
+    b.innerHTML = Array.from(uniqueMap.values()).map(m => {
+        const info = DATA.pMap[m.c];
+        const isExcl = (m.t === "3" || m.t === "4" || m.c === "0415020034"); 
+        const isOPME = m.c.startsWith('07');
+        
+        let color = isExcl ? 'var(--danger)' : (isOPME ? 'var(--opme)' : 'var(--proc)');
+        let label = isExcl ? 'EXCLUDENTE' : (isOPME ? 'OPME' : 'COMPATÍVEL');
+        let badgeClass = isExcl ? 'badge-excl' : (isOPME ? 'badge-opme' : 'badge-proc');
+
+        return `<div class="card-list" style="border-left: 5px solid ${color}">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <span class="badge ${badgeClass}">${label}</span>
+                    <span style="font-size: 0.7rem; font-weight: bold; margin-left: 8px; opacity: 0.8; color: var(--text-dim);">QTD: ${parseInt(m.q) || 0}</span>
+                </div>
+                <b style="color:var(--cyan); font-family:monospace;">${m.c}</b>
+            </div>
+            <div style="font-weight:600; font-size:0.85rem; margin:8px 0;">${info ? info.n : 'Código não mapeado'}</div>
+            <div style="text-align:right; font-size:0.8rem; font-weight:bold; color:${color}">
+                ${info ? fmt(info.sh) : '--'}
+            </div>
+        </div>`;
+    }).join('') || "<p style='padding:20px; opacity:0.5'>Nenhuma relação encontrada.</p>";
+
+    // Função auxiliar interna para preencher abas simples
+    const fill = (id, list, fn) => {
+        const box = document.getElementById(id);
+        if(box) box.innerHTML = (list && list.length) ? list.map(fn).join('') : "<p style='padding:20px; opacity:0.5'>Sem dados.</p>";
+    };
+
+    fill('tab-det', DATA.relDet ? DATA.relDet[cod] : [], d => `<div class="card-list"><b>${d}</b> - ${DATA.dets[d] || 'Detalhe'}</div>`);
+    fill('tab-cid', DATA.relCid ? DATA.relCid[cod] : [], c => `<div class="card-list"><b>${c}</b> - ${DATA.cids[c] || 'Descrição CID'}</div>`);
+    fill('tab-cbo', DATA.relCbo ? DATA.relCbo[cod] : [], c => `<div class="card-list" style="border-left: 5px solid var(--accent)"><b>${c}</b> - ${DATA.cbos[c] || 'CBO'}</div>`);
+    fill('tab-leito', DATA.relLeito ? DATA.relLeito[cod] : [], l => `<div class="card-list"><b>${NOMES_LEITOS[l] || 'Leito '+l}</b></div>`);
+    
+    fill('tab-serv', DATA.relServ ? DATA.relServ[cod] : [], x => {
+        const nomeS = DATA.servicos[x.s] || 'Serviço ' + x.s;
+        const nomeC = DATA.classificacoes ? DATA.classificacoes[x.s + x.c] || 'Classif ' + x.c : 'Classif ' + x.c;
+        return `<div class="card-list"><b>${nomeS}</b><br><small>${nomeC}</small></div>`;
+    });
+
+    fill('tab-hab', DATA.relHab ? DATA.relHab[cod] : [], h => `<div class="card-list"><b>${h}</b> - ${DATA.habilitacoes[h] || 'Habilitação'}</div>`);
+
+    window.scrollTo({top: 0, behavior: 'smooth'});
+} // FIM DA FUNÇÃO SHOW
+
+// FUNÇÕES GLOBAIS (Fora do show)
+function fmt(v) { return (parseInt(v)/100 || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
+function tab(e, id) {
+    document.querySelectorAll('.tab-content').forEach(x => x.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+    document.getElementById(id).style.display = 'block';
+    e.currentTarget.classList.add('active');
+}
+
+    function fmt(v) { return (parseInt(v)/100 || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
+    function tab(e, id) {
+        document.querySelectorAll('.tab-content').forEach(x => x.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+        document.getElementById(id).style.display = 'block';
+        e.currentTarget.classList.add('active');
+    }
+</script>
+<style>
+  #btn-back {
+    position: fixed !important;
+    bottom: 30px;
+    right: 20px;
+    z-index: 2147483647 !important; /* Valor máximo permitido em 32-bit */
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #2563eb;
+    color: white;
+    border: 4px solid white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+  }
+</style>
+
+<button id="btn-back" onclick="window.location.href='index.php'">
+    <i class="fa-solid fa-house"></i>
+</button>
+</body>
+</html>
