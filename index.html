@@ -28,14 +28,20 @@
         header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000; }
         .logo { font-weight: 800; font-size: 1.1rem; }
         .logo span { color: var(--accent); }
+        
+        /* Novas abas de navegação principal */
+        .main-nav { display: flex; gap: 5px; background: var(--card); padding: 5px 15px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+        .nav-item { padding: 10px 15px; font-size: 0.75rem; font-weight: 800; color: var(--text-dim); cursor: pointer; border-radius: 8px; white-space: nowrap; }
+        .nav-item.active { background: rgba(59, 130, 246, 0.1); color: var(--accent); }
+
         .search-container { padding: 15px; max-width: 800px; margin: 0 auto; position: relative; }
         .search-box { width: 100%; padding: 14px 18px; border-radius: 12px; border: 2px solid var(--border); background: var(--card); color: var(--text); font-size: 1rem; outline: none; box-sizing: border-box; }
         #results { position: absolute; width: calc(100% - 30px); top: 75px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); max-height: 350px; overflow-y: auto; z-index: 2000; display: none; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
         .item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; }
+        
         .container { max-width: 1000px; margin: 0 auto; padding: 10px; display: none; }
         .hero-card { background: var(--card); border-radius: 20px; padding: 20px; border: 1px solid var(--border); margin-bottom: 15px; border-top: 4px solid var(--accent); }
         
-        /* AJUSTE PARA CABER 5 ITENS NA GRADE */
         .grid-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
         @media (min-width: 600px) { .grid-stats { grid-template-columns: repeat(5, 1fr); } }
         
@@ -56,6 +62,12 @@
         .badge-proc { background: var(--proc); }
         .badge-excl { background: var(--danger); }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* Seções de Listagem */
+        .view-section { display: none; padding: 10px; max-width: 1000px; margin: 0 auto; }
+        .view-section.active { display: block; }
+        .list-search { margin-bottom: 15px; }
+
         #btn-back {
             position: fixed !important;
             bottom: 30px;
@@ -68,7 +80,7 @@
             color: white;
             border: 4px solid white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             font-size: 24px;
@@ -84,17 +96,38 @@
     <input type="file" id="file" style="display:none">
 </header>
 
+<nav class="main-nav">
+    <div class="nav-item active" onclick="switchMainTab(event, 'view-search')">BUSCA GERAL</div>
+    <div class="nav-item" onclick="switchMainTab(event, 'view-procedimentos')">LISTAGEM PROCEDIMENTOS</div>
+    <div class="nav-item" onclick="switchMainTab(event, 'view-opme')">LISTAGEM OPME</div>
+</nav>
+
 <div id="st" style="text-align:center; font-size:0.65rem; padding:8px; color:var(--cyan); font-weight:bold;">MODO AUDITORIA ATIVO</div>
 
-<div class="search-container">
-    <input type="text" id="sin" class="search-box" placeholder="Ex: 0408050500..." disabled>
-    <div id="results"></div>
-</div>
+<section id="view-search" class="view-section active">
+    <div class="search-container">
+        <input type="text" id="sin" class="search-box" placeholder="Ex: 0408050500..." disabled>
+        <div id="results"></div>
+    </div>
+</section>
+
+<section id="view-procedimentos" class="view-section">
+    <div class="search-container">
+        <input type="text" class="search-box" placeholder="Filtrar nesta lista..." oninput="filterLocalList(this.value, 'list-procs-data', false)">
+    </div>
+    <div id="list-procs-data"></div>
+</section>
+
+<section id="view-opme" class="view-section">
+    <div class="search-container">
+        <input type="text" class="search-box" placeholder="Filtrar nesta lista..." oninput="filterLocalList(this.value, 'list-opme-data', true)">
+    </div>
+    <div id="list-opme-data"></div>
+</section>
 
 <main class="container" id="ui">
     <div class="hero-card">
         <h1 id="ui-n" style="margin:0 0 15px 0; font-size:1.3rem;"></h1>
-        
         <div class="grid-stats">
             <div class="stat-box" style="border-color: var(--cyan); background: rgba(34, 211, 238, 0.05);">
                 <small>Código</small>
@@ -105,7 +138,6 @@
             <div class="stat-box"><small>Idade</small><b id="st-i"></b></div>
             <div class="stat-box"><small>Gênero</small><b id="st-s"></b></div>
         </div>
-
         <div class="price-row">
             <div class="price-tag"><small>SA</small><br><b id="v-sa"></b></div>
             <div class="price-tag"><small>SH</small><br><b id="v-sh"></b></div>
@@ -135,17 +167,24 @@
     <div id="tab-hab" class="tab-content"></div>
 </main>
 
-<button id="btn-back" onclick="window.location.href='../index.php'">
+<button id="btn-back" onclick="backToHome()">
     <i class="fa-solid fa-house"></i>
 </button>
 
 <script>
-
 // Função para remover acentos e deixar em minúsculo
 const normalizar = (str) => 
     str.normalize("NFD")
        .replace(/[\u0300-\u036f]/g, "")
        .toLowerCase();
+
+// --- LÓGICA DE BUSCA FRAGMENTADA ---
+function cumpreFiltro(textoAlvo, termoBusca) {
+    if (!termoBusca) return false;
+    const alvo = normalizar(textoAlvo);
+    const palavrasBusca = normalizar(termoBusca).split(/\s+/).filter(p => p.length > 0);
+    return palavrasBusca.every(palavra => alvo.includes(palavra));
+}
 
 const NOMES_LEITOS = {
     "01": "CIRURGICO", "02": "OBSTETRICO", "03": "PEDIATRICO", 
@@ -181,6 +220,56 @@ req.onsuccess = e => {
 function unlock() { 
     document.getElementById('sin').disabled = false; 
     document.getElementById('st').innerText = "BASE CARREGADA"; 
+}
+
+function switchMainTab(e, sectionId) {
+    document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('ui').style.display = 'none';
+    document.getElementById('btn-back').style.display = 'none';
+    
+    document.getElementById(sectionId).classList.add('active');
+    e.currentTarget.classList.add('active');
+
+    if(sectionId === 'view-procedimentos') renderFullList('list-procs-data', false);
+    if(sectionId === 'view-opme') renderFullList('list-opme-data', true);
+}
+
+function backToHome() {
+    document.getElementById('ui').style.display = 'none';
+    document.getElementById('btn-back').style.display = 'none';
+    const activeSection = document.querySelector('.nav-item.active').getAttribute('onclick').match(/'([^']+)'/)[1];
+    document.getElementById(activeSection).classList.add('active');
+}
+
+function renderFullList(containerId, onlyOPME) {
+    const container = document.getElementById(containerId);
+    const list = DATA.pList.filter(p => onlyOPME ? p.c.startsWith('07') : !p.c.startsWith('07'));
+    
+    container.innerHTML = list.slice(0, 100).map(p => `
+        <div class="card-list" onclick="show('${p.c}')" style="cursor:pointer; border-left:5px solid ${onlyOPME ? 'var(--opme)' : 'var(--proc)'}">
+            <b style="color:var(--cyan)">${p.c}</b><br>
+            <small>${p.n}</small>
+        </div>
+    `).join('');
+}
+
+function filterLocalList(val, containerId, onlyOPME) {
+    const q = val;
+    const container = document.getElementById(containerId);
+    if(q.length < 3) { renderFullList(containerId, onlyOPME); return; }
+
+    const filtered = DATA.pList.filter(p => {
+        const isType = onlyOPME ? p.c.startsWith('07') : !p.c.startsWith('07');
+        return isType && (p.c.includes(q) || cumpreFiltro(p.n, q));
+    }).slice(0, 50);
+
+    container.innerHTML = filtered.map(p => `
+        <div class="card-list" onclick="show('${p.c}')" style="cursor:pointer; border-left:5px solid ${onlyOPME ? 'var(--opme)' : 'var(--proc)'}">
+            <b style="color:var(--cyan)">${p.c}</b><br>
+            <small>${p.n}</small>
+        </div>
+    `).join('') || "<p style='padding:20px; opacity:0.5'>Nenhum resultado.</p>";
 }
 
 document.getElementById('file').onchange = async (e) => {
@@ -278,8 +367,9 @@ document.getElementById('file').onchange = async (e) => {
     }
 };
 
+// --- BUSCA GERAL ATUALIZADA (PROCEDIMENTOS + CID) ---
 document.getElementById('sin').oninput = function() {
-    const q = normalizar(this.value);
+    const q = this.value;
     const res = document.getElementById('results');
     
     if(q.length < 3) { 
@@ -287,29 +377,31 @@ document.getElementById('sin').oninput = function() {
         return; 
     }
 
-    // --- BUSCA PROCEDIMENTOS ---
+    // Busca Procedimentos
     const procs = DATA.pList.filter(p => 
-        normalizar(p.c).includes(q) || normalizar(p.n).includes(q)
+        p.c.includes(q) || cumpreFiltro(p.n, q)
     ).slice(0, 10);
 
-    // --- BUSCA CIDs ---
+    // Busca CIDs
     const cidsEncontrados = Object.keys(DATA.cids)
-        .filter(key => normalizar(key).includes(q) || normalizar(DATA.cids[key]).includes(q))
+        .filter(key => key.includes(q.toUpperCase()) || cumpreFiltro(DATA.cids[key], q))
         .slice(0, 5);
 
-    // Gerar HTML de Procedimentos
-    let html = procs.map(m => `
-        <div class="item" onclick="show('${m.c}')">
-            <span class="badge badge-proc">PROC</span> <b>${m.c}</b><br>
-            <small>${m.n}</small>
+    let html = '';
+
+    // Renderiza CIDs primeiro (opcional, para destaque)
+    html += cidsEncontrados.map(c => `
+        <div class="item" onclick="buscarProcedimentosPorCID('${c}')" style="border-left: 5px solid var(--cyan); background: rgba(34, 211, 238, 0.05);">
+            <span class="badge" style="background:var(--cyan)">CID</span> <b>${c}</b><br>
+            <small>${DATA.cids[c]}</small>
         </div>
     `).join('');
 
-    // Gerar HTML de CIDs (com função especial de clique)
-    html += cidsEncontrados.map(c => `
-        <div class="item" onclick="buscarProcedimentosPorCID('${c}')" style="border-left: 5px solid var(--cyan)">
-            <span class="badge" style="background:var(--cyan)">CID</span> <b>${c}</b><br>
-            <small>${DATA.cids[c]}</small>
+    // Renderiza Procedimentos
+    html += procs.map(m => `
+        <div class="item" onclick="show('${m.c}')">
+            <span class="badge badge-proc">PROC</span> <b>${m.c}</b><br>
+            <small>${m.n}</small>
         </div>
     `).join('');
 
@@ -321,11 +413,11 @@ function show(cod) {
     const p = DATA.pMap[cod];
     if (!p) return;
 
+    document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
     document.getElementById('results').style.display = 'none';
     document.getElementById('ui').style.display = 'block';
     document.getElementById('btn-back').style.display = 'flex';
 
-    // AJUSTE: Preenchimento do NOVO BLOCO de Código
     document.getElementById('st-cod').innerText = p.c;
     document.getElementById('ui-n').innerText = p.n;
     
@@ -337,7 +429,7 @@ function show(cod) {
     document.getElementById('v-sa').innerText = fmt(p.sa);
     document.getElementById('v-sh').innerText = fmt(p.sh);
     document.getElementById('v-sp').innerText = fmt(p.sp);
-    document.getElementById('v-tt').innerText = fmt(parseInt(p.sh) + parseInt(p.sp) + parseInt(p.sa));
+    document.getElementById('v-tt').innerText = fmt(parseInt(p.sh) + parseInt(p.sp));
 
     let regHtml = '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">';
     if (DATA.relReg[cod]) {
@@ -354,7 +446,6 @@ function show(cod) {
         if(box) box.innerHTML = (list && list.length) ? list.map(fn).join('') : "<p style='padding:20px; opacity:0.5'>Sem dados.</p>";
     };
 
-    // Aba Compatíveis com Quantidades Zeradas
     const b = document.getElementById('tab-mat');
     let list = DATA.relMat ? DATA.relMat[cod] || [] : [];
     const uniqueMap = new Map();
@@ -370,8 +461,6 @@ function show(cod) {
         let color = isExcl ? 'var(--danger)' : (isOPME ? 'var(--opme)' : 'var(--proc)');
         let label = isExcl ? 'EXCLUDENTE' : (isOPME ? 'OPME' : 'COMPATÍVEL');
         let badgeClass = isExcl ? 'badge-excl' : (isOPME ? 'badge-opme' : 'badge-proc');
-        
-        // EXIBE QUANTIDADES ZERADAS CONFORME SOLICITADO
         const quantidade = m.q !== undefined ? parseInt(m.q) : '--';
 
         return `<div class="card-list" style="border-left: 5px solid ${color}">
@@ -407,32 +496,33 @@ function tab(e, id) {
     e.currentTarget.classList.add('active');
 }
 
+// --- FUNÇÃO DE BUSCA INVERSA (PROCEDIMENTOS POR CID) ---
 function buscarProcedimentosPorCID(codCID) {
     const res = document.getElementById('results');
     const input = document.getElementById('sin');
     
-    // Filtra todos os procedimentos que possuem esse CID na relação
-    const listaProcs = DATA.pList.filter(p => {
-        const relacao = DATA.relCid[p.c] || [];
-        return relacao.includes(codCID);
-    });
+    // Varre todos os procedimentos e verifica quais contêm o CID selecionado na lista de relação
+    const listaProcs = DATA.pList.filter(p => (DATA.relCid[p.c] || []).includes(codCID));
 
-    input.value = `Procedimentos para CID ${codCID}`;
+    input.value = codCID; // Atualiza o texto da busca para o CID selecionado
     
-    res.innerHTML = `
-        <div style="padding:10px; background:var(--bg); font-size:0.7rem; color:var(--cyan); font-weight:bold; border-bottom:1px solid var(--border)">
-            ${codCID} - ${DATA.cids[codCID]}
+    let htmlHeader = `
+        <div style="padding:12px; background:var(--card); border-bottom:2px solid var(--cyan); position:sticky; top:0; z-index:10;">
+            <small style="color:var(--cyan); font-weight:800;">PROCEDIMENTOS PARA O CID:</small><br>
+            <b style="font-size:1rem;">${codCID} - ${DATA.cids[codCID]}</b>
         </div>
-    ` + listaProcs.map(m => `
+    `;
+
+    let htmlItens = listaProcs.map(m => `
         <div class="item" onclick="show('${m.c}')">
-            <b>${m.c}</b><br>
+            <span class="badge badge-proc">PROC</span> <b>${m.c}</b><br>
             <small>${m.n}</small>
         </div>
     `).join('');
-    
+
+    res.innerHTML = htmlHeader + (htmlItens || "<div class='item'>Nenhum procedimento compatível encontrado.</div>");
     res.style.display = 'block';
 }
-
 </script>
 </body>
 </html>
